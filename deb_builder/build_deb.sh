@@ -583,11 +583,13 @@ function create_changelog() {
   local date_debian=""
   local prefix=""
   local entry=""
+  local item=""
   local line=""
   local entries=()
   if [[ -n "$CFG_CHANGELOG_FILE_PATH" ]]; then
     echo "Create changelog from markdown file..."
-    while IFS= read -r line || [[ -n "$line" ]]; do
+    exec 3< <(sed 's/\r$//' "$CFG_CHANGELOG_FILE_PATH")
+    while IFS= read -r line <&3 || [[ -n "$line" ]]; do
       line="$(echo "$line" | xargs)"
       if [[ "$line" =~ ^##\ \[(.+)\]\ \-\ ([0-9]{4}-[0-9]{2}-[0-9]{2}) ]]; then
         if [[ -n "$version" ]]; then
@@ -602,13 +604,16 @@ function create_changelog() {
       elif [[ "$line" =~ ^###\ (.+) ]]; then
         prefix="${BASH_REMATCH[1]}"
       elif [[ "$line" =~ ^-\ (.+) ]]; then
+        item="${BASH_REMATCH[1]}"
+        item="$(echo "$item" | xargs)"
+        [[ -z "$item" ]] && continue
         if [[ -n "$prefix" ]]; then
-          changes+="  * $prefix: ${BASH_REMATCH[1]}"$'\n'
+          changes+="  * $prefix: $item"$'\n'
         else
-          changes+="  * ${BASH_REMATCH[1]}"$'\n'
+          changes+="  * $item"$'\n'
         fi
       fi
-    done < "$CFG_CHANGELOG_FILE_PATH"
+    done
     if [[ -n "$version" ]]; then
       entry="$CFG_NAME ($version) $distribution; urgency=$urgency"$'\n\n'"$changes"$'\n'" -- $CFG_MAINTAINER  $date_debian"$'\n'
       entries+=("$entry")
@@ -627,6 +632,59 @@ function create_changelog() {
 function create_copyright() {
   if [[ -n "$CFG_COPYRIGHT_FILE_PATH" ]]; then
     echo "Create copyright from license file..."
+    local license_path="/usr/share/common-licenses"
+    local license_id="Custom"
+    local license_notice=""
+    if grep -Eqi "GNU GENERAL PUBLIC LICENSE" "$CFG_COPYRIGHT_FILE_PATH"; then
+      if grep -Eq "Version 3" "$CFG_COPYRIGHT_FILE_PATH"; then
+        license_id="GPL-3"
+        [[ -f "$license_path/$license_id" ]] && license_notice=" On Debian systems, the complete text of the GNU General Public License\n version 3 can be found in \"$license_path/GPL-3\"." || license_id="Custom"
+      elif grep -Eq "Version 2" "$CFG_COPYRIGHT_FILE_PATH"; then
+        license_id="GPL-2"
+        [[ -f "$license_path/$license_id" ]] && license_notice=" On Debian systems, the complete text of the GNU General Public License\n version 2 can be found in \"$license_path/GPL-2\"." || license_id="Custom"
+      fi
+    elif grep -Eqi "GNU LESSER GENERAL PUBLIC LICENSE" "$CFG_COPYRIGHT_FILE_PATH"; then
+      if grep -Eq "Version 3" "$CFG_COPYRIGHT_FILE_PATH"; then
+        license_id="LGPL-3"
+        [[ -f "$license_path/$license_id" ]] && license_notice=" On Debian systems, the complete text of the GNU Lesser General Public License\n version 3 can be found in \"$license_path/LGPL-3\"." || license_id="Custom"
+      elif grep -Eq "Version 2.1" "$CFG_COPYRIGHT_FILE_PATH"; then
+        license_id="LGPL-2.1"
+        [[ -f "$license_path/$license_id" ]] && license_notice=" On Debian systems, the complete text of the GNU Lesser General Public License\n version 2.1 can be found in \"$license_path/LGPL-2.1\"." || license_id="Custom"
+      fi
+    elif grep -Eqi "Affero General Public License" "$CFG_COPYRIGHT_FILE_PATH"; then
+      license_id="AGPL-3"
+      [[ -f "$license_path/$license_id" ]] && license_notice=" On Debian systems, the complete text of the GNU Affero General Public License\n version 3 can be found in \"$license_path/AGPL-3\"." || license_id="Custom"
+    elif grep -Eqi "MIT License" "$CFG_COPYRIGHT_FILE_PATH"; then
+      license_id="MIT"
+      [[ -f "$license_path/$license_id" ]] && license_notice=" On Debian systems, the complete text of the MIT License can be found in \"$license_path/MIT\"." || license_id="Custom"
+    elif grep -Eqi "Apache License" "$CFG_COPYRIGHT_FILE_PATH"; then
+      license_id="Apache-2.0"
+      [[ -f "$license_path/$license_id" ]] && license_notice=" On Debian systems, the complete text of the Apache License 2.0 can be found in \"$license_path/Apache-2.0\"." || license_id="Custom"
+    elif grep -Eqi "BSD" "$CFG_COPYRIGHT_FILE_PATH"; then
+      license_id="BSD-3-Clause"
+      [[ -f "$license_path/$license_id" ]] && license_notice=" On Debian systems, the complete text of the BSD 3-Clause License can be found in \"$license_path/BSD\"." || license_id="Custom"
+    elif grep -Eqi "Creative Commons.*Attribution" "$CFG_COPYRIGHT_FILE_PATH"; then
+      license_id="CC-BY-4.0"
+      license_notice=" This project is licensed under the Creative Commons Attribution 4.0 International License.\n See: https://creativecommons.org/licenses/by/4.0/"
+    fi
+    {
+      echo "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/"
+      echo "Upstream-Name: $CFG_NAME"
+      echo "Upstream-Contact: $CFG_MAINTAINER"
+      echo ""
+      echo "Files: *"
+      echo "Copyright: $(date +%Y) ${CFG_MAINTAINER%%<*}"
+      echo "License: $license_id"
+      echo ""
+      if [[ "$license_id" == "Custom" ]]; then
+        sed 's/\r$//' "$CFG_COPYRIGHT_FILE_PATH" | sed 's/^/ /'
+      else
+        echo -e "$license_notice"
+      fi
+    } > "${BUILD_DIR}/DEBIAN/copyright"
+
+  elif [[ -n "$CFG_COPYRIGHT_STRING" ]]; then
+    echo "Create copyright from conf string..."
     {
       echo "Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/"
       echo "Upstream-Name: $CFG_NAME"
@@ -636,11 +694,8 @@ function create_copyright() {
       echo "Copyright: $(date +%Y) ${CFG_MAINTAINER%%<*}"
       echo "License: Custom"
       echo ""
-      sed 's/^/ /' "$CFG_COPYRIGHT_FILE_PATH"
+      echo "$CFG_COPYRIGHT_STRING" | sed 's/^/ /'
     } > "${BUILD_DIR}/DEBIAN/copyright"
-  elif [[ -n "$CFG_COPYRIGHT_STRING" ]]; then
-    echo "Create copyright from conf string..."
-    echo "$CFG_COPYRIGHT_STRING" > "${BUILD_DIR}/DEBIAN/copyright"
   fi
 }
 
@@ -673,8 +728,8 @@ function set_package_file_perms() {
 function build_deb() {
   echo "Build deb package..."
   local SUCCESSCODE="TRUE"
-  rm -f "${RELEASE_DIR}/${DEB_NAME}.deb"
-  dpkg-deb -Zxz --build "${BUILD_DIR}" "${RELEASE_DIR}/${DEB_NAME}.deb" >/dev/null 2>&1
+  rm -f "${RELEASE_DIR}/${CFG_DEB_BASE_FILE_NAME}.deb"
+  dpkg-deb -Zxz --build "${BUILD_DIR}" "${RELEASE_DIR}/${CFG_DEB_BASE_FILE_NAME}.deb" >/dev/null 2>&1
   if [ $? -ne 0 ]; then
     set_final_file_perms
     echo "build deb package error! abort."
