@@ -1,6 +1,8 @@
-# My Project
+# auto-reboot
 
-A brief description of what this project does and who it's for.
+Reboot system after given uptime in ofs-boot or normal-boot.  
+Also reboots system after reaching given low diskfree limit.  
+Can reboot system once after hardreset (powerlost)  
 
 ## Features
 
