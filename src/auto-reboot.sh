@@ -20,18 +20,6 @@ OFSDISKFREE=0
 NRMUPTIME=0
 EXITCODE=0
 
-#!!!RUN RESTRICTIONS!!!
-#only for raspberry pi (rpi5|rpi4|rpi3|all) can combined!
-raspi="all"
-#only for Raspbian OS (bookworm|bullseye|all) can combined!
-rasos="bookworm|bullseye"
-#only for cpu architecture (i386|armhf|amd64|arm64) can combined!
-cpuarch=""
-#only for os architecture (32|64) can NOT combined!
-bsarch=""
-#this aptpaks need to be installed!
-aptpaks=(  )
-
 #check commands
 for i in "$@"
 do
@@ -102,63 +90,6 @@ function do_check_start() {
     echo "Please run this script with Superuser privileges!"
     exit 1
   fi
-  #check if raspberry pi 
-  if [ "$raspi" != "" ]; then
-    raspi_v="$(tr -d '\0' 2>/dev/null < /proc/device-tree/model)"
-    local raspi_res="false"
-    [[ "$raspi_v" =~ "Raspberry Pi" ]] && [[ "$raspi" =~ "all" ]] && raspi_res="true"
-    [[ "$raspi_v" =~ "Raspberry Pi 3" ]] && [[ "$raspi" =~ "rpi3" ]] && raspi_res="true"
-    [[ "$raspi_v" =~ "Raspberry Pi 4" ]] && [[ "$raspi" =~ "rpi4" ]] && raspi_res="true"
-    [[ "$raspi_v" =~ "Raspberry Pi 5" ]] && [[ "$raspi" =~ "rpi5" ]] && raspi_res="true"
-    if [ "$raspi_res" == "false" ]; then
-      echo "This Device seems not to be an Raspberry Pi ($raspi)! Can not continue with this script!"
-      exit 1
-    fi
-  fi
-  #check if raspbian
-  if [ "$rasos" != "" ]
-  then
-    rasos_v="$(lsb_release -d -s 2>/dev/null)"
-    [ -f /etc/rpi-issue ] && rasos_v="Raspbian ${rasos_v}"
-    local rasos_res="false"
-    [[ "$rasos_v" =~ "Raspbian" ]] && [[ "$rasos" =~ "all" ]] && rasos_res="true"
-    [[ "$rasos_v" =~ "Raspbian" ]] && [[ "$rasos_v" =~ "bullseye" ]] && [[ "$rasos" =~ "bullseye" ]] && rasos_res="true"
-    [[ "$rasos_v" =~ "Raspbian" ]] && [[ "$rasos_v" =~ "bookworm" ]] && [[ "$rasos" =~ "bookworm" ]] && rasos_res="true"
-    if [ "$rasos_res" == "false" ]; then
-      echo "You need to run Raspbian OS ($rasos) to run this script! Can not continue with this script!"
-      exit 1
-    fi
-  fi
-  #check cpu architecture
-  if [ "$cpuarch" != "" ]; then
-    cpuarch_v="$(dpkg --print-architecture 2>/dev/null)"
-    if [[ ! "$cpuarch" =~ "$cpuarch_v" ]]; then
-      echo "Your CPU Architecture ($cpuarch_v) is not supported! Can not continue with this script!"
-      exit 1
-    fi
-  fi
-  #check os architecture
-  if [ "$bsarch" == "32" ] || [ "$bsarch" == "64" ]; then
-    bsarch_v="$(getconf LONG_BIT 2>/dev/null)"
-    if [ "$bsarch" != "$bsarch_v" ]; then
-      echo "Your OS Architecture ($bsarch_v) is not supported! Can not continue with this script!"
-      exit 1
-    fi
-  fi
-  #check apt paks
-  local apt
-  local apt_res
-  IFS=$' '
-  if [ "${#aptpaks[@]}" != "0" ]; then
-    for apt in ${aptpaks[@]}; do
-      [[ ! "$(dpkg -s $apt 2>/dev/null)" =~ "Status: install" ]] && apt_res="${apt_res}${apt}, "
-    done
-    if [ "$apt_res" != "" ]; then
-      echo "Not installed apt paks: ${apt_res%?%?}! Can not continue with this script!"
-      exit 1
-    fi
-  fi
-  unset IFS
   #check overlay status
   [ $(findmnt -n -o FSTYPE / 2>/dev/null) == "overlay" ] && overlayfs="true" || overlayfs="false"
   #check config files integrity
@@ -298,7 +229,7 @@ function cmd_print_help() {
   echo " "
   echo "Only one option at same time is allowed (except settings)!"
   echo " "
-  echo "Author: aragon25"
+  echo "Author: aragon25 <aragon25.01@web.de>"
 }
 
 [ "$CMD" != "version" ] && [ "$CMD" != "help" ] &&  do_check_start

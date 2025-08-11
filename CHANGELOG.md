@@ -10,6 +10,14 @@ All notable changes to this project will be documented in this file.
 
 ### Removed
 
+## [1.5-1] - 2025-08-12
+
+### Added
+- first release from github repo
+
+### Removed
+- bindings to Raspberry Pi
+
 ## [1.4-2] - 2025-07-06
 
 ### Fixed
