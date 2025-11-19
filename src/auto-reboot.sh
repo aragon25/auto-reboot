@@ -1,24 +1,36 @@
 #!/bin/bash
 ##############################################
 ##                                          ##
-##  auto-reboot-service                     ##
+##  auto-reboot                             ##
 ##                                          ##
 ##############################################
 
 #get some variables
-SCRIPT_TITLE="auto-reboot-service"
-SCRIPT_VERSION="1.4"
+SCRIPT_TITLE="auto-reboot"
+SCRIPT_VERSION="1.5"
 SCRIPT_PATH="$(readlink -f "$0")"
 SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
 mountpoint -q /STATIC && STATIC_DIR="/STATIC" || STATIC_DIR="/etc"
 CONFIG_FILE="/etc/auto-reboot.config"
-STATE_FILE="$STATIC_DIR/${SCRIPT_TITLE}_poweroff"
+STATE_FILE="$STATIC_DIR/${SCRIPT_TITLE}_reboot"
 HARDRESET="n"
 OFSUPTIME=0
 OFSDISKFREE=0
 NRMUPTIME=0
 EXITCODE=0
+
+#!!!RUN RESTRICTIONS!!!
+#only for raspberry pi (rpi5|rpi4|rpi3|all) can combined!
+raspi="all"
+#only for Raspbian OS (trixie|bookworm|bullseye|all) can combined!
+rasos="bookworm|bullseye"
+#only for cpu architecture (i386|armhf|amd64|arm64) can combined!
+cpuarch=""
+#only for os architecture (32|64) can NOT combined!
+bsarch=""
+#this aptpaks need to be installed!
+aptpaks=(  )
 
 #check commands
 for i in "$@"
@@ -90,10 +102,70 @@ function do_check_start() {
     echo "Please run this script with Superuser privileges!"
     exit 1
   fi
+  #check if raspberry pi 
+  if [ "$raspi" != "" ]; then
+    raspi_v="$(tr -d '\0' 2>/dev/null < /proc/device-tree/model)"
+    local raspi_res="false"
+    [[ "$raspi_v" =~ "Raspberry Pi" ]] && [[ "$raspi" =~ "all" ]] && raspi_res="true"
+    [[ "$raspi_v" =~ "Raspberry Pi 3" ]] && [[ "$raspi" =~ "rpi3" ]] && raspi_res="true"
+    [[ "$raspi_v" =~ "Raspberry Pi 4" ]] && [[ "$raspi" =~ "rpi4" ]] && raspi_res="true"
+    [[ "$raspi_v" =~ "Raspberry Pi 5" ]] && [[ "$raspi" =~ "rpi5" ]] && raspi_res="true"
+    if [ "$raspi_res" == "false" ]; then
+      echo "This Device seems not to be an Raspberry Pi ($raspi)! Can not continue with this script!"
+      exit 1
+    fi
+  fi
+  #check if raspbian
+  if [ "$rasos" != "" ]
+  then
+    rasos_v="$(lsb_release -d -s 2>/dev/null)"
+    [ -f /etc/rpi-issue ] && rasos_v="Raspbian ${rasos_v}"
+    local rasos_res="false"
+    [[ "$rasos_v" =~ "Raspbian" ]] && [[ "$rasos" =~ "all" ]] && rasos_res="true"
+    [[ "$rasos_v" =~ "Raspbian" ]] && [[ "$rasos_v" =~ "bullseye" ]] && [[ "$rasos" =~ "bullseye" ]] && rasos_res="true"
+    [[ "$rasos_v" =~ "Raspbian" ]] && [[ "$rasos_v" =~ "bookworm" ]] && [[ "$rasos" =~ "bookworm" ]] && rasos_res="true"
+    [[ "$rasos_v" =~ "Raspbian" ]] && [[ "$rasos_v" =~ "trixie" ]] && [[ "$rasos" =~ "trixie" ]] && rasos_res="true"
+    if [ "$rasos_res" == "false" ]; then
+      echo "You need to run Raspbian OS ($rasos) to run this script! Can not continue with this script!"
+      exit 1
+    fi
+  fi
+  #check cpu architecture
+  if [ "$cpuarch" != "" ]; then
+    cpuarch_v="$(dpkg --print-architecture 2>/dev/null)"
+    if [[ ! "$cpuarch" =~ "$cpuarch_v" ]]; then
+      echo "Your CPU Architecture ($cpuarch_v) is not supported! Can not continue with this script!"
+      exit 1
+    fi
+  fi
+  #check os architecture
+  if [ "$bsarch" == "32" ] || [ "$bsarch" == "64" ]; then
+    bsarch_v="$(getconf LONG_BIT 2>/dev/null)"
+    if [ "$bsarch" != "$bsarch_v" ]; then
+      echo "Your OS Architecture ($bsarch_v) is not supported! Can not continue with this script!"
+      exit 1
+    fi
+  fi
+  #check apt paks
+  local apt
+  local apt_res
+  IFS=$' '
+  if [ "${#aptpaks[@]}" != "0" ]; then
+    for apt in ${aptpaks[@]}; do
+      [[ ! "$(dpkg -s $apt 2>/dev/null)" =~ "Status: install" ]] && apt_res="${apt_res}${apt}, "
+    done
+    if [ "$apt_res" != "" ]; then
+      echo "Not installed apt paks: ${apt_res%?%?}! Can not continue with this script!"
+      exit 1
+    fi
+  fi
+  unset IFS
   #check overlay status
   [ $(findmnt -n -o FSTYPE / 2>/dev/null) == "overlay" ] && overlayfs="true" || overlayfs="false"
   #check config files integrity
   [[ ! $(file -b --mime-type "$(readlink -f "$CONFIG_FILE")" 2>/dev/null) =~ "text" ]] && config_write_all >/dev/null 2>&1
+  [ -f "/run/${SCRIPT_TITLE}.lock" ]  && islocked=y
+  touch "/run/${SCRIPT_TITLE}.lock"
 }
 
 function config_read(){ # path, key, defaultvalue -> value
@@ -151,20 +223,22 @@ function config_write_all(){
 }
 
 function cmd_boot() {
-  if [ -f "$STATE_FILE" ] && [ "$HARDRESET" == "y" ]; then
-    rm -f "$STATE_FILE" >/dev/null 2>&1
-  elif [ "$HARDRESET" == "y" ]; then
+  if [ -f "$STATE_FILE" ] && [ "$HARDRESET" == "y" ] && [ -z "${islocked}" ]; then
     cmd_shutdown
     sync >/dev/null 2>&1
     vcgencmd display_power 0 >/dev/null 2>&1
     sleep 3
     reboot -f
+  elif [ ! -f "$STATE_FILE" ] && [ "$HARDRESET" == "y" ]; then
+    touch "$STATE_FILE" >/dev/null 2>&1
+  elif [ -f "$STATE_FILE" ] && [ "$HARDRESET" != "y" ]; then
+    rm -f "$STATE_FILE" >/dev/null 2>&1
   fi
 }
 
 function cmd_shutdown() {
-  if [ ! -e "$STATE_FILE" ] && [ "$HARDRESET" == "y" ]; then
-    touch "$STATE_FILE" >/dev/null 2>&1
+  if [ -f "$STATE_FILE" ]; then
+    rm -f "$STATE_FILE" >/dev/null 2>&1
   fi
 }
 

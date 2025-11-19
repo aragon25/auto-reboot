@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5-1] - TESTING
+
+### Added
+- bindings to Raspberry Pi again
+
+### Changed
+- renamed state file from {APP-NAME}_poweroff to {APP-NAME}_reboot
+- state file logic swaped. now: file exists -> reboot before: file not exists -> reboot 
+(better compatibility with initramfs-imgldr)
+
+### Removed
+
+
 ## [1.4-3] - 2025-11-20
 
 ### Changed
