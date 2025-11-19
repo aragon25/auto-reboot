@@ -1,0 +1,17 @@
+[Unit]
+Description=Auto-Reboot: reboots system once after power lost
+DefaultDependencies=no
+Before=basic.target
+Requires=local-fs.target sysinit.target
+After=local-fs.target sysinit.target
+
+[Service]
+Type=simple
+ExecStartPre=/usr/bin/auto-reboot --boot
+ExecStart=/usr/bin/auto-reboot --service
+ExecStop=/usr/bin/auto-reboot --shutdown
+User=root
+
+[Install]
+WantedBy=basic.target
+Alias=auto-reboot.service

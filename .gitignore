@@ -1,0 +1,14 @@
+# Debian packages and deployement
+deb/
+
+# Virtual environment
+src/venv/
+src/.env/
+src/.env
+src/.env.lokal
+
+# Editor and system files
+*.swp
+.DS_Store
+.idea/
+.vscode/
