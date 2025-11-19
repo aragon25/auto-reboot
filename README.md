@@ -21,12 +21,12 @@ The latest `.deb` installer can be found in the repository’s **Releases** sect
 
 1. Download the latest release package:
    ```bash
-   wget https://github.com/aragon25/auto-reboot/releases/download/v1.5-1/auto-reboot_1.5-1_all.deb
+   wget https://github.com/aragon25/auto-reboot/releases/download/v1.4-3/auto-reboot_1.4-3_all.deb
    ```
 
 2. Install the package:
    ```bash
-   sudo apt install ./auto-reboot_1.5-1_all.deb
+   sudo apt install ./auto-reboot_1.4-3_all.deb
    ```
 
 This will:
