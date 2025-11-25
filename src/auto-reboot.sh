@@ -68,7 +68,7 @@ do
     [ "$CMD" == "" ] && CMD="boot" || CMD="help"
     shift # past argument
     ;;
-    --shutdown)
+    --shutdown|--clean)
     [ "$CMD" == "" ] && CMD="shutdown" || CMD="help"
     shift # past argument
     ;;
