@@ -11,14 +11,19 @@ SCRIPT_VERSION="1.5"
 SCRIPT_PATH="$(readlink -f "$0")"
 SCRIPT_NAME="$(basename "$SCRIPT_PATH")"
 SCRIPT_DIR="$(dirname "$SCRIPT_PATH")"
-mountpoint -q /STATIC && STATIC_DIR="/STATIC" || STATIC_DIR="/etc"
 CONFIG_FILE="/etc/auto-reboot.config"
-STATE_FILE="$STATIC_DIR/${SCRIPT_TITLE}_reboot"
 HARDRESET="n"
 OFSUPTIME=0
 OFSDISKFREE=0
 NRMUPTIME=0
 EXITCODE=0
+if mountpoint -q "/STATIC"; then 
+  STATE_FILE="/STATIC/${SCRIPT_TITLE}_reboot"
+  rm -f "/etc/${SCRIPT_TITLE}_reboot" >/dev/null 2>&1
+else
+  STATE_FILE="/etc/${SCRIPT_TITLE}_reboot"
+  rm -f "/STATIC/${SCRIPT_TITLE}_reboot" >/dev/null 2>&1
+fi
 
 #!!!RUN RESTRICTIONS!!!
 #only for raspberry pi (rpi5|rpi4|rpi3|all) can combined!
