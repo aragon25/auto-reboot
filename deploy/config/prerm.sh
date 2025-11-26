@@ -9,5 +9,6 @@ if [ -f "/usr/bin/auto-reboot" ]; then
   echo "Prepare to remove ..."
   /usr/bin/auto-reboot --shutdown >/dev/null 2>&1
   /usr/bin/auto-reboot --boot >/dev/null 2>&1
+  /usr/bin/auto-reboot --clean >/dev/null 2>&1
 fi
 exit 0
