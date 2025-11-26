@@ -29,7 +29,7 @@ fi
 #only for raspberry pi (rpi5|rpi4|rpi3|all) can combined!
 raspi="all"
 #only for Raspbian OS (trixie|bookworm|bullseye|all) can combined!
-rasos="bookworm|bullseye"
+rasos="trixie|bookworm|bullseye"
 #only for cpu architecture (i386|armhf|amd64|arm64) can combined!
 cpuarch=""
 #only for os architecture (32|64) can NOT combined!

@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.5-1] - TESTING
+## [1.5-1] - 2025-11-26
 
 ### Added
 - bindings to Raspberry Pi again
